@@ -27,9 +27,27 @@ class LiveAPICompleter:
         results =  [x for x in self.commands if x.startswith(text)] + [None]
         return results[state]
 
+MACROS = ["MUTE_ALL"]
 words = ["live", "song", "track", "clip", "device", "parameter", "parameters"]
-completer = LiveAPICompleter(words)
+completer = LiveAPICompleter(words + MACROS)
 readline.set_completer(completer.complete)
+
+
+def _mute_all(client_, MUTE=1):
+
+    # smoke test
+    if not client_.query("/live/test"):
+       raise Exception("Check Ableton Live is running")
+
+    # yuck... one dimensional tuple
+    num_of_tracks = client_.query("/live/song/get/num_tracks")[0]
+    for track_id in range(int(num_of_tracks)):
+        # MUTE = 1 to mute
+        client_.send_message('/live/track/set/mute', [track_id, MUTE])
+    if MUTE:
+       print("Muted All Tracks")
+    else:
+       print("Unmuted All Tracks")
 
 def main(args):
     client = AbletonOSCClient(args.hostname, args.port)
@@ -48,17 +66,12 @@ def main(args):
             print()
             break
 
-        if not re.search("\\w", command_str):
-            #--------------------------------------------------------------------------------
-            # Command is empty
-            #--------------------------------------------------------------------------------
-            continue
-        if not re.search("^/", command_str):
-            #--------------------------------------------------------------------------------
-            # Command is invalid
-            #--------------------------------------------------------------------------------
-            print("OSC address must begin with a slash (/)")
-            continue
+        if command_str == "MUTE_ALL":
+           _mute_all(client)
+           continue
+        if command_str == "UNMUTE_ALL":
+           _mute_all(client, MUTE=0)
+           continue
 
         command, *params_str = command_str.split(" ")
         params = []
